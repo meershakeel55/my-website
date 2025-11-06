@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AnimeLoverOtaku</title>
+  <style>
+    :root{
+      --bg:#0d0d0d; --card:#0f1720; --accent:#ef4444; --muted:#9aa4b2; --glass: rgba(255,255,255,0.04);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Poppins, system-ui, -apple-system,Segoe UI, Roboto, "Helvetica Neue", Arial;background:var(--bg);color:#fff;min-height:100vh}
+    header{position:sticky;top:0;background:linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.25));backdrop-filter: blur(6px);padding:18px 20px;z-index:40}
+    .header-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+    h1{margin:0;font-size:20px;letter-spacing:0.5px}
+    .subtitle{font-size:13px;color:var(--muted);margin-top:4px}
+
+    .controls{display:flex;gap:12px;align-items:center;margin-left:auto}
+    input[type="search"]{padding:10px 12px;border-radius:8px;border:0;outline:0;width:360px;background:var(--glass);color:inherit}
+    select, button.add-btn{padding:10px;border-radius:8px;border:0;background:var(--glass);color:inherit}
+    button.add-btn{cursor:pointer;background:linear-gradient(90deg,var(--accent),#ff6b6b);border-radius:8px;color:#fff}
+
+    main{max-width:1100px;margin:18px auto;padding:0 18px}
+    .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .chip{padding:8px 10px;border-radius:999px;background:rgba(255,255,255,0.03);cursor:pointer;font-size:13px;border:1px solid transparent}
+    .chip.active{background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.18)}
+
+    .anime-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}
+    .anime-card{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));border-radius:12px;overflow:hidden;cursor:pointer;border:1px solid rgba(255,255,255,0.03);transition:transform .18s ease, box-shadow .18s}
+    .anime-card:hover{transform:translateY(-6px);box-shadow:0 8px 30px rgba(0,0,0,0.6)}
+    .anime-card img{width:100%;height:240px;object-fit:cover;display:block}
+    .anime-card .info{padding:10px}
+    .anime-card .title{font-weight:700;font-size:15px;margin-bottom:6px}
+    .anime-card .meta{font-size:13px;color:var(--muted)}
+
+    /* detail overlay */
+    .detail{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.6));z-index:120}
+    .detail .box{width:min(900px,96%);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:18px;border-radius:12px;display:flex;gap:14px}
+    .detail img{width:320px;height:440px;object-fit:cover;border-radius:8px}
+    .detail .right{flex:1;color:inherit}
+    .detail h2{margin:0 0 8px 0}
+    .detail p{margin:6px 0;color:var(--muted)}
+    .close-btn{margin-top:14px;padding:8px 12px;border-radius:8px;border:0;background:var(--accent);color:#fff;cursor:pointer}
+
+    /* add form */
+    .add-form{display:none;position:fixed;inset:0;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:130}
+    .add-form form{background:var(--card);padding:14px;border-radius:10px;width:420px;box-shadow:0 8px 40px rgba(0,0,0,0.6)}
+    form input, form textarea, form select{width:100%;padding:8px;margin-top:8px;border-radius:8px;border:0;background:rgba(255,255,255,0.03);color:inherit}
+    form button{margin-top:10px;width:100%;padding:10px;border-radius:8px;border:0;background:var(--accent);color:#fff;cursor:pointer}
+
+    footer{text-align:center;color:var(--muted);padding:18px 0}
+
+    @media (max-width:600px){.header-inner{justify-content:center}.controls{width:100%;justify-content:space-between}.anime-card img{height:200px}.detail img{display:none}.detail .box{flex-direction:column}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div>
+        <h1>AnimeLoverOtaku</h1>
+        <div class="subtitle">This website is only for anime info — browse, filter and add anime details.</div>
+      </div>
+
+      <div class="controls">
+        <input id="search" type="search" placeholder="Search anime by title..." aria-label="search">
+        <select id="genreSelect" title="Filter by genre">
+          <option value="all">All genres</option>
+        </select>
+        <button class="add-btn" id="openAdd">+ Add Anime</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="filters" id="chips"></div>
+    <div class="anime-grid" id="animeGrid" aria-live="polite"></div>
+  </main>
+
+  <div class="detail" id="detail">
+    <div class="box">
+      <img id="detailImg" src="" alt="">
+      <div class="right">
+        <h2 id="detailTitle"></h2>
+        <div style="font-weight:700;color:var(--muted);" id="detailGenre"></div>
+        <p id="detailDesc"></p>
+        <button class="close-btn" id="closeDetail">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="add-form" id="addForm">
+    <form id="formAdd">
+      <h3 style="margin:0">Add new anime</h3>
+      <input id="aTitle" placeholder="Title (required)" required>
+      <input id="aGenre" placeholder="Genre (e.g. Action)" required>
+      <input id="aImg" placeholder="Image URL (optional)">
+      <textarea id="aDesc" rows="4" placeholder="Short description"></textarea>
+      <button type="submit">Add to list</button>
+      <button type="button" id="cancelAdd" style="margin-top:8px;background:transparent;color:var(--muted)">Cancel</button>
+    </form>
+  </div>
+
+  <footer>Made with ❤️ — AnimeLoverOtaku</footer>
+
+  <script>
+    // --- Data (you can edit/extend this array) ---
+    const animeList = [
+      { title: "Demon Slayer", genre: "Action", img: "https://cdn.myanimelist.net/images/anime/1286/99889.jpg", desc: "Tanjiro’s family is slain by demons, leading him to become a Demon Slayer." },
+      { title: "Attack on Titan", genre: "Action", img: "https://cdn.myanimelist.net/images/anime/10/47347.jpg", desc: "Humanity fights for survival against Titans in a walled city." },
+      { title: "Your Name", genre: "Romance", img: "https://cdn.myanimelist.net/images/anime/5/87048.jpg", desc: "Two teenagers mysteriously swap bodies and form an emotional connection." },
+      { title: "Naruto", genre: "Action", img: "https://cdn.myanimelist.net/images/anime/13/17405.jpg", desc: "A young ninja seeks recognition and dreams of becoming Hokage." },
+      { title: "Jujutsu Kaisen", genre: "Action", img: "https://cdn.myanimelist.net/images/anime/1171/109222.jpg", desc: "Yuji Itadori joins a secret organization of Jujutsu Sorcerers." },
+      { title: "One Piece", genre: "Adventure", img: "https://cdn.myanimelist.net/images/anime/6/73245.jpg", desc: "Monkey D. Luffy sails to become the Pirate King in search of the One Piece." },
+      { title: "Re:Zero − Starting Life in Another World", genre: "Isekai", img: "https://cdn.myanimelist.net/images/anime/11/79410.jpg", desc: "Subaru discovers he can return from death to change fate." },
+      { title: "Fruits Basket", genre: "Shoujo", img: "https://cdn.myanimelist.net/images/anime/1975/111567.jpg", desc: "A girl finds herself living with a family cursed by the Zodiac spirits." },
+      { title: "Death Note", genre: "Thriller", img: "https://cdn.myanimelist.net/images/anime/9/9453.jpg", desc: "A student finds a notebook that lets him kill anyone by writing their name." },
+      { title: "Toradora!", genre: "Romance", img: "https://cdn.myanimelist.net/images/anime/13/22128.jpg", desc: "Two unlikely classmates team up to help each other confess their love." },
+      { title: "Haikyuu!!", genre: "Sports", img: "https://cdn.myanimelist.net/images/anime/7/76014.jpg", desc: "A determined volleyball player aims to become the best despite his height." },
+      { title: "Steins;Gate", genre: "Sci-Fi", img: "https://cdn.myanimelist.net/images/anime/1935/127974.jpg", desc: "A self-proclaimed mad scientist accidentally invents time travel." },
+      { title: "Cowboy Bebop", genre: "Action", img: "https://cdn.myanimelist.net/images/anime/4/19644.jpg", desc: "A crew of bounty hunters chase criminals through space." },
+      { title: "Kaguya-sama: Love is War", genre: "Romance", img: "https://cdn.myanimelist.net/images/anime/1295/106551.jpg", desc: "Two geniuses at a prestigious school battle to make the other confess love." },
+      { title: "Your Lie in April", genre: "Romance", img: "https://cdn.myanimelist.net/images/anime/3/67177.jpg", desc: "A pianist rediscovers music and love through a spirited violinist." },
+      { title: "Tokyo Revengers", genre: "Action", img: "https://cdn.myanimelist.net/images/anime/1806/122011.jpg", desc: "A young man travels back in time to save his girlfriend." },
+      { title: "Death Note", genre: "Thriller", img: "https://cdn.myanimelist.net/images/anime/9/9453.jpg", desc: "A student finds a notebook that lets him kill anyone by writing their name." },
+      { title: "Toradora!", genre: "Romance", img: "https://cdn.myanimelist.net/images/anime/13/22128.jpg", desc: "Two unlikely classmates team up to help each other confess their love." },
+      { title: "Bleach", genre: "Action", img: "https://cdn.myanimelist.net/images/anime/3/40451.jpg", desc: "Ichigo gains Soul Reaper powers to fight evil spirits and save souls." },
+      { title: "Fruits Basket", genre: "Romance", img: "https://cdn.myanimelist.net/images/anime/1975/111567.jpg", desc: "A girl finds herself living with a family cursed by the Zodiac spirits." },
+      { title: "Chainsaw Man", genre: "Action", img: "https://cdn.myanimelist.net/images/anime/1806/126216.jpg", desc: "Denji merges with his pet devil Pochita to become Chainsaw Man." },
+      { title: "My Dress-Up Darling", genre: "Romance", img: "https://cdn.myanimelist.net/images/anime/1441/120479.jpg", desc: "A shy boy and a lively girl bond over cosplay and sewing." },
+      { title: "Black Clover", genre: "Action", img: "https://cdn.myanimelist.net/images/anime/2/88336.jpg", desc: "Asta dreams of becoming Wizard King despite being born without magic." },
+      { title: "A Silent Voice", genre: "Romance", img: "https://cdn.myanimelist.net/images/anime/1122/96435.jpg", desc: "A boy seeks redemption by reconnecting with the deaf girl he once bullied." },
+      { title: "Hunter x Hunter", genre: "Action", img: "https://cdn.myanimelist.net/images/anime/1337/99013.jpg", desc: "Gon sets out to become a Hunter and find his father." },
+      { title: "Sword Art Online", genre: "Action", img: "https://cdn.myanimelist.net/images/anime/11/39717.jpg", desc: "Players are trapped in a VR game where dying means real death." },
+      { title: "Vivy: Fluorite Eye’s Song", genre: "Sci-Fi", img: "https://cdn.myanimelist.net/images/anime/1981/113348.jpg", desc: "An AI songstress must prevent a war between humans and AIs." },
+      { title: "Horimiya", genre: "Romance", img: "https://cdn.myanimelist.net/images/anime/1813/111796.jpg", desc: "A shy boy and popular girl discover each other's hidden sides." },
+      { title: "Fullmetal Alchemist: Brotherhood", genre: "Action", img: "https://cdn.myanimelist.net/images/anime/1223/96541.jpg", desc: "Two brothers search for the Philosopher's Stone after a failed alchemy ritual." },
+      { title:"Dragon Ball Z", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1607/117271.jpg", desc:"Goku defends Earth from powerful foes while constantly pushing his limits." },
+      { title:"Fairy Tail", genre:"Adventure", img:"https://cdn.myanimelist.net/images/anime/5/18179.jpg", desc:"A young mage joins the Fairy Tail guild, where friendship and magic collide." },
+      { title:"Haikyuu!!", genre:"Sports", img:"https://cdn.myanimelist.net/images/anime/7/76014.jpg", desc:"A determined volleyball player aims to become the best despite his height." },
+      { title:"Blue Lock", genre:"Sports", img:"https://cdn.myanimelist.net/images/anime/1812/127649.jpg", desc:"Japan recruits talented strikers in a survival soccer competition." },
+      { title:"Spy x Family", genre:"Comedy", img:"https://cdn.myanimelist.net/images/anime/1441/122795.jpg", desc:"A spy, an assassin, and a telepath pretend to be a family to complete a mission." },
+      { title:"The Rising of the Shield Hero", genre:"Fantasy", img:"https://cdn.myanimelist.net/images/anime/1490/101365.jpg", desc:"A man is summoned to another world as the Shield Hero to defend it." },
+      { title:"Re:Zero − Starting Life in Another World", genre:"Fantasy", img:"https://cdn.myanimelist.net/images/anime/11/79410.jpg", desc:"Subaru discovers he can return from death to change fate." },
+      { title:"Steins;Gate", genre:"Sci-Fi", img:"https://cdn.myanimelist.net/images/anime/1935/127974.jpg", desc:"A self-proclaimed mad scientist accidentally invents time travel." },
+      { title:"Erased", genre:"Thriller", img:"https://cdn.myanimelist.net/images/anime/10/77957.jpg", desc:"A man travels back to his childhood to prevent a tragic kidnapping." },
+      { title:"Mob Psycho 100", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/8/80356.jpg", desc:"A psychic middle-schooler tries to live a normal life despite his powers." },
+      { title:"The Seven Deadly Sins", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/8/65409.jpg", desc:"A group of legendary knights reunite to save their kingdom." },
+      { title:"Parasyte: The Maxim", genre:"Horror", img:"https://cdn.myanimelist.net/images/anime/3/73178.jpg", desc:"An alien parasite takes over a boy’s hand, forcing them to coexist." },
+      { title:"Made in Abyss", genre:"Adventure", img:"https://cdn.myanimelist.net/images/anime/6/86733.jpg", desc:"A girl descends into a vast, deadly abyss searching for her mother." },
+      { title:"No Game No Life", genre:"Fantasy", img:"https://cdn.myanimelist.net/images/anime/5/65187.jpg", desc:"Genius siblings are summoned to a world where games decide everything." },
+      { title:"Overlord", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/7/88019.jpg", desc:"A gamer trapped in his favorite MMORPG decides to rule its world." },
+      { title:"Vinland Saga", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1500/103005.jpg", desc:"A young Viking seeks revenge and discovers the true meaning of a warrior." },
+      { title:"Code Geass", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1011/127920.jpg", desc:"A prince gains the power of absolute obedience and leads a rebellion." },
+      { title:"The Promised Neverland", genre:"Thriller", img:"https://cdn.myanimelist.net/images/anime/1021/96541.jpg", desc:"Children at a peaceful orphanage uncover a horrifying secret." },
+      { title:"One Punch Man", genre:"Comedy", img:"https://cdn.myanimelist.net/images/anime/12/76049.jpg", desc:"A hero who defeats any foe with one punch seeks a worthy challenge." },
+      { title:"Dr. Stone", genre:"Sci-Fi", img:"https://cdn.myanimelist.net/images/anime/1613/102576.jpg", desc:"After humanity turns to stone, a genius rebuilds civilization with science." },
+      { title:"Fire Force", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1670/102727.jpg", desc:"A firefighter with pyrokinetic powers battles infernals in a burning city." },
+      { title:"Psycho-Pass", genre:"Sci-Fi", img:"https://cdn.myanimelist.net/images/anime/5/43399.jpg", desc:"In a future Japan, law enforcement measures people’s criminal intent." },
+      { title:"Cowboy Bebop", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/4/19644.jpg", desc:"A crew of bounty hunters chase criminals through space." },
+      { title:"Samurai Champloo", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/10/6043.jpg", desc:"Two swordsmen and a girl travel Japan in a hip-hop-infused samurai tale." },
+      { title:"Neon Genesis Evangelion", genre:"Mecha", img:"https://cdn.myanimelist.net/images/anime/1314/108941.jpg", desc:"Teen pilots must defend humanity from monstrous angels." },
+      { title:"Trigun", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/7/20310.jpg", desc:"A pacifist gunman wanders the desert pursued by bounty hunters." },
+      { title:"Gintama", genre:"Comedy", img:"https://cdn.myanimelist.net/images/anime/10/73274.jpg", desc:"In an alien-occupied Japan, a samurai runs odd jobs with friends." },
+      { title:"Black Butler", genre:"Mystery", img:"https://cdn.myanimelist.net/images/anime/3/75177.jpg", desc:"A boy makes a pact with a demon butler to avenge his parents." },
+      { title:"Soul Eater", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/9/7804.jpg", desc:"Students at a death-weapon academy collect souls to graduate." },  
+      { title:"Noragami", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/9/77817.jpg", desc:"A minor god does odd jobs for 5 yen while dreaming of fame." },
+      { title:"Assassination Classroom", genre:"Comedy", img:"https://cdn.myanimelist.net/images/anime/5/75639.jpg", desc:"Students must kill their alien teacher before he destroys Earth." },
+      { title:"Bungo Stray Dogs", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/3/80136.jpg", desc:"Detectives with supernatural powers solve crimes and face rival groups." },
+      { title:"Clannad", genre:"Romance", img:"https://cdn.myanimelist.net/images/anime/1805/131949.jpg", desc:"A delinquent helps girls around school and learns about family bonds." },
+      { title:"Kaguya-sama: Love is War", genre:"Romance", img:"https://cdn.myanimelist.net/images/anime/1295/106551.jpg", desc:"Two geniuses at a prestigious school battle to make the other confess love." },
+      { title:"Nisekoi", genre:"Romance", img:"https://cdn.myanimelist.net/images/anime/13/59403.jpg", desc:"A fake relationship between rival heirs turns unexpectedly real." },
+      { title:"The Quintessential Quintuplets", genre:"Romance", img:"https://cdn.myanimelist.net/images/anime/1816/103531.jpg", desc:"A tutor struggles to teach five identical sisters with unique personalities." },
+      { title:"Rent-A-Girlfriend", genre:"Romance", img:"https://cdn.myanimelist.net/images/anime/1999/113611.jpg", desc:"A lonely student rents a girlfriend and catches unexpected feelings." },
+      { title:"Komi Can’t Communicate", genre:"Comedy", img:"https://cdn.myanimelist.net/images/anime/1441/117350.jpg", desc:"A girl with extreme shyness tries to make 100 friends." },
+      { title:"March Comes in Like a Lion", genre:"Drama", img:"https://cdn.myanimelist.net/images/anime/4/84074.jpg", desc:"A young shogi player learns to face life’s struggles and loneliness." },
+      { title:"Oshi no Ko", genre:"Drama", img:"https://cdn.myanimelist.net/images/anime/1812/134736.jpg", desc:"A doctor reincarnates as the child of his favorite idol, uncovering dark truths." },
+      { title:"Ergo Proxy", genre:"Sci-Fi", img:"https://cdn.myanimelist.net/images/anime/5/73199.jpg", desc:"In a domed city, a detective investigates mysterious android-related murders." },
+      { title:"The Ancient Magus’ Bride", genre:"Fantasy", img:"https://cdn.myanimelist.net/images/anime/3/88476.jpg", desc:"A girl is sold to a mysterious magus who takes her as his apprentice and bride." },
+      { title:"Akame ga Kill!", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1429/95946.jpg", desc:"Assassins fight corruption in a brutal empire." },
+      { title:"Darling in the FranXX", genre:"Mecha", img:"https://cdn.myanimelist.net/images/anime/1614/90408.jpg", desc:"Teens pilot giant mechs to protect humanity from monsters." },
+      { title:"The Devil is a Part-Timer!", genre:"Comedy", img:"https://cdn.myanimelist.net/images/anime/5/76031.jpg", desc:"A demon lord works at a fast-food restaurant after being stranded in Tokyo." },
+      { title:"To Your Eternity", genre:"Drama", img:"https://cdn.myanimelist.net/images/anime/1341/113403.jpg", desc:"An immortal being learns emotions through encounters with humans." },
+      { title:"86", genre:"Mecha", img:"https://cdn.myanimelist.net/images/anime/1985/116495.jpg", desc:"Teens fight a war as expendable drone pilots in a segregated world." },
+      { title:"Vivy: Fluorite Eye’s Song", genre:"Sci-Fi", img:"https://cdn.myanimelist.net/images/anime/1981/113348.jpg", desc:"An AI songstress must prevent a war between humans and AIs." },
+      { title:"Charlotte", genre:"Drama", img:"https://cdn.myanimelist.net/images/anime/7/74606.jpg", desc:"Teens with special powers discover the cost of their abilities." },
+      { title:"Toriko", genre:"Adventure", img:"https://cdn.myanimelist.net/images/anime/5/29877.jpg", desc:"A gourmet hunter searches for rare ingredients in a fantasy world." },
+      { title:"Yuri on Ice", genre:"Sports", img:"https://cdn.myanimelist.net/images/anime/9/82590.jpg", desc:"A figure skater rediscovers his passion under the guidance of his idol." },
+      { title:"Blue Exorcist", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/5/73245.jpg", desc:"The son of Satan trains to become an exorcist to defeat his father." },
+      { title:"Berserk", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1608/131351.jpg", desc:"A lone mercenary fights fate in a dark medieval world." },
+      { title:"Goblin Slayer", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1314/93633.jpg", desc:"A stoic adventurer dedicates his life to exterminating goblins." },
+      { title:"Jobless Reincarnation", genre:"Fantasy", img:"https://cdn.myanimelist.net/images/anime/1127/110963.jpg", desc:"A man reincarnates in a magic world determined to live life fully." },
+      { title:"Grimgar: Ashes and Illusions", genre:"Fantasy", img:"https://cdn.myanimelist.net/images/anime/4/77824.jpg", desc:"Strangers awaken in a game-like world and fight to survive." },
+      { title:"The World’s Finest Assassin", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1065/117795.jpg", desc:"An assassin reincarnates in a fantasy world to eliminate its hero." },
+      { title:"That Time I Got Reincarnated as a Slime", genre:"Fantasy", img:"https://cdn.myanimelist.net/images/anime/1710/110810.jpg", desc:"A man reborn as a slime becomes a powerful being in another world." },
+      { title:"Konosuba", genre:"Comedy", img:"https://cdn.myanimelist.net/images/anime/8/77831.jpg", desc:"A gamer dies and is sent to a hilarious fantasy world." },
+      { title:"The Eminence in Shadow", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1208/128316.jpg", desc:"A boy dreams of operating from the shadows and becomes a real power." },
+      { title:"Redo of Healer", genre:"Fantasy", img:"https://cdn.myanimelist.net/images/anime/1085/110951.jpg", desc:"A healer rewinds time to take revenge and reclaim his life." },
+      { title:"The Faraway Paladin", genre:"Fantasy", img:"https://cdn.myanimelist.net/images/anime/1221/117790.jpg", desc:"A boy raised by undead beings learns the meaning of faith and heroism." },
+      { title:"Log Horizon", genre:"Fantasy", img:"https://cdn.myanimelist.net/images/anime/5/65587.jpg", desc:"Gamers trapped in an MMORPG learn to adapt and build a new society." },
+      { title:"Spice and Wolf", genre:"Adventure", img:"https://cdn.myanimelist.net/images/anime/6/18179.jpg", desc:"A traveling merchant meets a wolf deity and journeys for profit and love." },
+      { title:"The Case Study of Vanitas", genre:"Fantasy", img:"https://cdn.myanimelist.net/images/anime/1630/115978.jpg", desc:"A vampire and human team up to cure cursed vampires." },
+      { title:"D.Gray-man", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/4/78024.jpg", desc:"An exorcist fights demons created by sorrowful souls." },
+      { title:"Seraph of the End", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/5/73245.jpg", desc:"After vampires enslave humanity, a boy vows revenge." },
+      { title:"Elfen Lied", genre:"Horror", img:"https://cdn.myanimelist.net/images/anime/10/75716.jpg", desc:"A mutated girl with invisible arms escapes captivity, leaving bloodshed." },
+      { title:"Btooom!", genre:"Thriller", img:"https://cdn.myanimelist.net/images/anime/8/38155.jpg", desc:"Gamers are trapped on an island where they must kill using bombs." },
+      { title:"Highschool of the Dead", genre:"Horror", img:"https://cdn.myanimelist.net/images/anime/5/76249.jpg", desc:"Students fight to survive a zombie apocalypse." },
+      { title:"Another", genre:"Horror", img:"https://cdn.myanimelist.net/images/anime/10/75517.jpg", desc:"A cursed class experiences mysterious deaths after a transfer student arrives." },
+      { title:"Hellsing Ultimate", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1/7466.jpg", desc:"A vampire works for a secret organization to protect England from the undead." },
+      { title:"Terror in Resonance", genre:"Thriller", img:"https://cdn.myanimelist.net/images/anime/6/76289.jpg", desc:"Two teenage terrorists challenge society with cryptic riddles." },
+      { title:"Great Teacher Onizuka", genre:"Comedy", img:"https://cdn.myanimelist.net/images/anime/13/11460.jpg", desc:"A delinquent becomes a teacher and changes his students’ lives." },
+      { title:"Beastars", genre:"Drama", img:"https://cdn.myanimelist.net/images/anime/1680/109332.jpg", desc:"Anthropomorphic animals struggle with love and instincts in a divided society." },
+      { title:"Zom 100: Bucket List of the Dead", genre:"Comedy", img:"https://cdn.myanimelist.net/images/anime/1390/136899.jpg", desc:"A worker enjoys life again after a zombie apocalypse frees him from his job." },
+      { title:"The Dangers in My Heart", genre:"Romance", img:"https://cdn.myanimelist.net/images/anime/1425/136453.jpg", desc:"A loner boy secretly obsessed with death falls for the class beauty." },
+      { title:"Frieren: Beyond Journey’s End", genre:"Fantasy", img:"https://cdn.myanimelist.net/images/anime/1015/138006.jpg", desc:"An elf mage reflects on the passage of time after her hero’s death." },
+      { title:"Heavenly Delusion", genre:"Sci-Fi", img:"https://cdn.myanimelist.net/images/anime/1815/134352.jpg", desc:"Two youths search for paradise in a ruined Japan." },
+      { title:"Call of the Night", genre:"Romance", img:"https://cdn.myanimelist.net/images/anime/1321/123469.jpg", desc:"A boy finds purpose after meeting a seductive vampire." },
+      { title:"Chainsaw Man", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1806/126216.jpg", desc:"A young man merges with his pet devil to become Chainsaw Man." },
+      { title:"Solo Leveling", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1526/142263.jpg", desc:"A weak hunter gains the power to level up infinitely after a deadly dungeon." },
+      { title:"Dandadan", genre:"Comedy", img:"https://cdn.myanimelist.net/images/anime/1931/143972.jpg", desc:"Two teens face aliens and ghosts in bizarre supernatural encounters." },
+      { title:"Kaiju No. 8", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1715/142008.jpg", desc:"A man gains monster powers to protect Japan from kaiju attacks." },
+      { title:"Wind Breaker", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1995/143777.jpg", desc:"A delinquent school defends its town through street fights." },
+      { title:"Mashle: Magic and Muscles", genre:"Comedy", img:"https://cdn.myanimelist.net/images/anime/1918/136412.jpg", desc:"A boy with no magic trains his muscles to rival powerful wizards." },
+      { title:"Hell’s Paradise", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1288/134266.jpg", desc:"Convicts explore a mysterious island to earn their freedom." },
+      { title:"Jujutsu Kaisen", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1171/109222.jpg", desc:"A boy eats a cursed finger and gains powers to fight evil spirits." },
+      { title:"Demon Slayer", genre:"Action", img:"https://cdn.myanimelist.net/images/anime/1286/99889.jpg", desc:"A boy becomes a demon slayer to save his sister and avenge his family." },
+      { title:"Your Lie in April", genre:"Romance", img:"https://cdn.myanimelist.net/images/anime/3/67177.jpg", desc:"A pianist rediscovers music and love through a spirited violinist." },
+      { title: "Re:Zero − Starting Life in Another World", genre: "Isekai", img: "images/rezero.jpg",
+       desc: "Re:Zero follows Subaru Natsuki, an ordinary boy suddenly transported to another world, where he discovers he can return from death — but only by dying first. Each loop forces him to relive pain, regret, and despair as he learns to protect the people he loves. The anime blends psychological horror, romance, and mystery, showing how small emotional choices ripple across timelines. It’s a dark, character-driven Isekai with exceptional emotional stakes." },
+       { title: "Fruits Basket", genre: "Shoujo", img: "https://placehold.co/600x900?text=Fruits+Basket",
+  desc: "Tohru Honda becomes entangled with the Sohma family and their ancient zodiac curse after losing her mother and finding shelter with them. The series slowly peels back each family's secret, showing how trauma and love shape behavior across generations. Much of Fruits Basket’s power comes from its honest, patient character work: the healing is gradual and sometimes painfully realistic. It’s a story about forgiveness, found family, and learning to accept both other people and yourself." },
+
+{ title: "Ouran High School Host Club", genre: "Shoujo", img: "https://placehold.co/600x900?text=Ouran+High+School+Host+Club",
+  desc: "Haruhi Fujioka, a scholarship student at an elite academy, is forced to work for the charming and chaotic Host Club after breaking a priceless vase. What begins as comedic cross-dressing and elite satire becomes a warm exploration of identity, class, and friendship. The show excels at balancing absurd humor with sincere character growth — even the most ridiculous moments land emotionally. Ouran remains beloved for its wit, heart, and unapologetic fun." },
+
+{ title: "Kimi ni Todoke", genre: "Shoujo", img: "https://placehold.co/600x900?text=Kimi+ni+Todoke",
+  desc: "Sawako Kuronuma is shy and misunderstood because of her resemblance to a horror-movie character, but everything changes when Kazehaya befriends her. Kimi ni Todoke is a slow-burning, tender romance centered on communication, self-confidence, and how kindness changes lives. Small gestures and quiet scenes make the feelings feel earned — there’s no rush to the romance, only steady emotional truth. The series is gentle, hopeful, and full of comforting human warmth." },
+
+{ title: "Ao Haru Ride", genre: "Shoujo", img: "https://placehold.co/600x900?text=Ao+Haru+Ride",
+  desc: "Futaba and Kou were close in middle school until a misunderstanding drove them apart; reunited in high school, they find both have changed. Ao Haru Ride focuses on second chances and the messy, real work of learning to be honest about yourself. The show is notable for its realistic depiction of adolescent awkwardness and the way past hurt affects present behavior. It’s a relatable, bittersweet portrait of growing up and learning to let people in." },
+
+{ title: "Say I Love You", genre: "Shoujo", img: "https://placehold.co/600x900?text=Say+I+Love+You",
+  desc: "Mei Tachibana has learned to keep everyone at a distance until she meets Yamato, whose open kindness slowly draws her out of isolation. Say I Love You is an intimate romance about trust, boundaries, and the slow rebuilding of a wounded heart. The show does not sugarcoat social anxiety and trauma; instead, it shows healing as a messy, non-linear process. If you like character-focused, realistic romance with emotional stakes, this one lands strongly." },
+
+{ title: "My Little Monster (Tonari no Kaibutsu-kun)", genre: "Shoujo", img: "https://placehold.co/600x900?text=My+Little+Monster",
+  desc: "Shizuku, a studious and reserved girl, is thrown off balance when the impulsive troublemaker Haru suddenly confesses to her. My Little Monster mines the comedy of opposites while gradually revealing unexpected emotional depth in both leads. The series balances slapstick and social awkwardness with surprisingly honest moments about attachment and insecurity. It’s a charming, slightly chaotic romance that grows on viewers as the characters mature." },
+
+{ title: "Orange", genre: "Shoujo", img: "https://placehold.co/600x900?text=Orange",
+  desc: "Naho receives letters from her future self warning about a new transfer student, Kakeru, and urging her to prevent future regret. Orange blends time-travel mechanics with the delicate psychology of adolescent grief and mental health. The emotional core is heavy but handled with empathy; the story centers on proactive care, friendship, and the way small choices can save someone. It’s quietly powerful and often deeply moving." },
+
+{ title: "Snow White with the Red Hair (Akagami no Shirayukihime)", genre: "Shoujo", img: "https://placehold.co/600x900?text=Snow+White+Red+Hair",
+  desc: "Shirayuki, an independent herbalist with striking red hair, escapes an arranged fate and finds a new life in a neighboring kingdom with Prince Zen. The series stands out for its calm, respectful romance and its focus on partnership rather than melodrama. Political intrigue and character agency are balanced with pastoral, slice-of-life interludes that let the relationship breathe. It’s elegant, grounded, and genuinely romantic without sacrificing realism." },
+
+{ title: "Yona of the Dawn (Akatsuki no Yona)", genre: "Shoujo", img: "https://placehold.co/600x900?text=Yona+of+the+Dawn",
+  desc: "Princess Yona’s sheltered life collapses after a palace coup forces her into exile; she must reclaim strength and allies to survive. Yona of the Dawn evolves into an epic coming-of-age adventure where growth is earned through hardship and loyalty. The show combines political intrigue, adventure, and heartfelt friendships with a heroine who undergoes profound transformation. It’s adventurous, emotional, and empowering." },
+
+{ title: "Kamisama Kiss (Kamisama Hajimemashita)", genre: "Shoujo", img: "https://placehold.co/600x900?text=Kamisama+Kiss",
+  desc: "After being left homeless, Nanami becomes a local land god and meets the proud fox familiar Tomoe, beginning a magical and comedic romance. Kamisama Kiss blends Shinto folklore with rom-com beats, offering strong chemistry between leads and playful supernatural world-building. The show balances romantic tension, identity, and gentle character growth with warm humor. It’s whimsical, charming, and often very funny." },
+
+{ title: "Natsume’s Book of Friends (Natsume Yuujinchou)", genre: "Shoujo", img: "https://placehold.co/600x900?text=Natsume%27s+Book+of+Friends",
+  desc: "Takashi Natsume can see spirits, and he inherits a book of names that binds them; he chooses to return names rather than exploit them. Natsume’s Book of Friends is a quiet, episodic series about empathy, loneliness, and the slow healing found in connection with others — both human and yokai. Its tone is gentle and melancholic, emphasizing compassion and the bittersweet nature of memory. The show is a comfort watch with deep emotional resonance." },
+
+{ title: "Fushigi Yûgi", genre: "Shoujo", img: "https://placehold.co/600x900?text=Fushigi+Yugi",
+  desc: "Fushigi Yûgi follows a girl transported into a mysterious book world where she becomes the priestess destined to summon gods. The series is a classic ’90s shōjo with sweeping romance, political conflict, and passionate character drama. Expect love triangles, betrayal, and fate-driven stakes — the melodrama is part of its nostalgic charm. If you enjoy intense romantic fantasy, this is a hallmark title." },
+
+{ title: "Maid-Sama! (Kaichou wa Maid-sama!)", genre: "Shoujo", img: "https://placehold.co/600x900?text=Maid-Sama",
+  desc: "Misaki, a strict student council president, secretly works at a maid cafe and tries to keep her double life private — until the cool delinquent Usui discovers her secret. Maid-Sama! juxtaposes romantic comedy with themes of independence and pride, and its leads have electric, teasing chemistry. The series is both hilarious and sweet, offering classic romantic tropes with an empowering heroine. It’s ideal if you like sharp banter and earnest confessions." },
+
+{ title: "Lovely★Complex", genre: "Shoujo", img: "https://placehold.co/600x900?text=Lovely+Complex",
+  desc: "A tall girl and a short boy pair up to solve their romantic woes but instead discover a deep friendship that grows into love. Lovely★Complex thrives on physical comedy, timing, and the honest vulnerability of its characters. The anime explores identity, teasing, and self-acceptance while delivering strong emotional payoff. It’s a comedy-romance that manages to be both hilarious and heartwarming." },
+
+{ title: "Paradise Kiss", genre: "Shoujo", img: "https://placehold.co/600x900?text=Paradise+Kiss",
+  desc: "A high-school girl is swept into the world of fashion by a group of eccentric design students, forcing her to confront adulthood and identity. Paradise Kiss is stylish and mature — part romance, part coming-of-age, all wrapped in couture aesthetics. Its protagonist grows through art, love, and painful choices, and the ending is bittersweet and memorable. The series resonates with anyone who’s faced decisions that change the course of life." },
+
+{ title: "Nodame Cantabile", genre: "Shoujo", img: "https://placehold.co/600x900?text=Nodame+Cantabile",
+  desc: "Nodame Cantabile pairs an eccentric, free-spirited pianist with a perfectionist conductor as they pursue music and personal growth. The show blends comedy, romance, and classical music appreciation, with character arcs that feel earned across the ensemble. It’s charming, fun, and surprisingly educational about musical performance and artistic temperament. The series’ warmth and laughter anchor its deeper emotional moments." },
+
+{ title: "Honey and Clover", genre: "Shoujo", img: "https://placehold.co/600x900?text=Honey+and+Clover",
+  desc: "Honey and Clover follows art-school students navigating unrequited love, career anxieties, and the ache of growing up. The series is tender, bittersweet, and often painfully real about the disillusionment that comes with early adulthood. Its strength is subtlety — small moments and quiet pain are depicted with delicate humor and compassion. Fans praise it for emotional realism and slow, meaningful character evolution." },
+
+{ title: "Chihayafuru", genre: "Shoujo", img: "https://placehold.co/600x900?text=Chihayafuru",
+  desc: "Chihayafuru centers on competitive karuta (a traditional Japanese card game) and a fierce protagonist whose passion sparks a team, friends, and rivalries. It’s a sports anime in spirit, but its focus on culture, friendship, and the poetry of watanabe elevates it to something tender and inspiring. The emotional bonds between players and the ritualistic beauty of the game make each match a personal stake for viewers. The show is heartfelt, energizing, and visually elegant." },
+
+{ title: "Skip Beat!", genre: "Shoujo", img: "https://placehold.co/600x900?text=Skip+Beat",
+  desc: "After being betrayed by her crush and pop-star boyfriend, Kyoko enters show business with revenge on her mind — only to find her own talents ignite a genuine passion. Skip Beat! is equal parts comedy and dramatic character growth, chronicling a protagonist who transforms pain into craft. The series is empowering: it celebrates self-discovery and the joy of performing. The romance is slow-burn, but the inner arc is the real thrill." },
+
+{ title: "Strobe Edge", genre: "Shoujo", img: "https://placehold.co/600x900?text=Strobe+Edge",
+  desc: "Strobe Edge is a gentle teen romance about first love, longing, and the risky honesty that comes with it. The hero’s unguarded emotions and the heroine’s uncertain responses are portrayed with quiet realism. The series focuses on the reverberations of sincere feeling rather than melodrama, making it a tender watch. Fans of soft emotional storytelling will find it deeply satisfying." },
+
+{ title: "Glass Mask", genre: "Shoujo", img: "https://placehold.co/600x900?text=Glass+Mask",
+  desc: "Glass Mask follows a driven young actress as she rises from poverty to pursue the legendary ‘Mask of Apollo’ in an intense theatrical rivalry. The series is melodramatic in the classic shōjo sense — full of ambitious showbiz stakes, rivalries, and emotional extremes. If you enjoy high-drama character arcs and the art of acting as a metaphor for life, Glass Mask delivers. It’s long, passionate, and quintessentially dramatic." },
+
+{ title: "Itazura na Kiss", genre: "Shoujo", img: "https://placehold.co/600x900?text=Itazura+na+Kiss",
+  desc: "A lovably clumsy girl persists in her affection for the brilliant but aloof Naoki, slowly earning his respect and love through kindness and perseverance. Itazura na Kiss is a classic romantic comedy about persistence, personal growth, and the rewards of steady devotion. The series covers many years of the couple’s life, letting viewers watch them mature through normal struggles. It’s comfortingly romantic and ideal for long-term emotional investment." },
+
+{ title: "My Love Story!! (Ore Monogatari!!)", genre: "Shoujo", img: "https://placehold.co/600x900?text=My+Love+Story",
+  desc: "My Love Story flips the usual shōjo lead by focusing on a huge, gentle-hearted protagonist who finds love in unexpected ways. The romance is pure, sincere, and refreshingly wholesome — built on kindness and protective affection rather than angst. The show’s humor and heart make it a feel-good romance for viewers tired of conventional love-triangle melodrama. It’s joyful, warm, and very sweet." },
+
+{ title: "Soredemo Sekai wa Utsukushii (The World Is Still Beautiful)", genre: "Shoujo", img: "https://placehold.co/600x900?text=The+World+Is+Still+Beautiful",
+  desc: "A princess who can call down rain is sent to marry the youthful Sun King, only to find a cold and confusing court life she must navigate. The World Is Still Beautiful blends whimsical fantasy with political undercurrents and a slow-blooming romantic bond. The series highlights cultural differences and mutual growth as both leads learn to understand and protect one another. It’s lyrical, romantic, and quietly majestic." },
+
+{ title: "Monthly Girls' Nozaki-kun", genre: "Shoujo", img: "https://placehold.co/600x900?text=Monthly+Girls+Nozaki-kun",
+  desc: "Chiyo confesses to her crush, Nozaki, only to discover he’s a shojo-manga artist who mistakes her for a fan; she ends up assisting him instead. The series is a meta-comedy about writing romance that simultaneously parodies and celebrates shōjo tropes. Fast, witty, and absurdly lovable, the characters all have eccentric personalities that make for nonstop laughs. It’s perfect when you want smart humor with romantic overtones." },
+
+{ title: "Kare Kano (His and Her Circumstances)", genre: "Shoujo", img: "https://placehold.co/600x900?text=Kare+Kano",
+  desc: "One of the early modern shōjo masterpieces, Kare Kano follows two top students whose polished public images hide deep insecurities, and who learn to be honest with each other. The series is introspective and theatrical, blending psychological depth with romantic development. It’s rawer and more self-aware than many lighter shōjo shows, dealing with identity, competition, and intimacy. Those who want intelligent emotional drama will find it rewarding." },
+  
+  
+
+    ];
+
+    // --- DOM refs ---
+    const grid = document.getElementById('animeGrid');
+    const search = document.getElementById('search');
+    const genreSelect = document.getElementById('genreSelect');
+    const chips = document.getElementById('chips');
+    const detail = document.getElementById('detail');
+    const detailImg = document.getElementById('detailImg');
+    const detailTitle = document.getElementById('detailTitle');
+    const detailGenre = document.getElementById('detailGenre');
+    const detailDesc = document.getElementById('detailDesc');
+
+    // Add form refs
+    const openAdd = document.getElementById('openAdd');
+    const addFormWrap = document.getElementById('addForm');
+    const formAdd = document.getElementById('formAdd');
+    const cancelAdd = document.getElementById('cancelAdd');
+
+    // --- Helpers ---
+    function uniqueGenres(list){
+      const s = new Set(list.map(a => a.genre).filter(Boolean));
+      return Array.from(s).sort();
+    }
+
+    function renderChips(genres){
+      chips.innerHTML = '';
+      const all = document.createElement('div');
+      all.className = 'chip active';
+      all.textContent = 'All';
+      all.dataset.genre = 'all';
+      chips.appendChild(all);
+
+      genres.forEach(g => {
+        const el = document.createElement('div');
+        el.className = 'chip';
+        el.textContent = g;
+        el.dataset.genre = g;
+        chips.appendChild(el);
+      });
+    }
+
+    function populateGenreSelect(genres){
+      // keep default option then add rest
+      genres.forEach(g => {
+        const o = document.createElement('option'); o.value = g; o.textContent = g; genreSelect.appendChild(o);
+      });
+    }
+
+    function cardHtml(a){
+      return `\n        <div class="anime-card" tabindex="0" data-title="${escapeHtml(a.title)}" data-genre="${escapeHtml(a.genre)}">\n          <img src="${a.img||'https://placehold.co/600x900?text=No+Image'}" alt="${escapeHtml(a.title)} poster">\n          <div class="info">\n            <div class="title">${escapeHtml(a.title)}</div>\n            <div class="meta">${escapeHtml(a.genre)}</div>\n          </div>\n        </div>\n      `;
+    }
+
+    function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    function render(list){
+      grid.innerHTML = list.map(a => cardHtml(a)).join('');
+      // attach click handlers
+      document.querySelectorAll('.anime-card').forEach((el,i)=>{
+        el.addEventListener('click', ()=> openDetail(list[i]));
+        el.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter') openDetail(list[i]); });
+      });
+    }
+
+    function openDetail(a){
+      detailImg.src = a.img || 'https://placehold.co/600x900?text=No+Image';
+      detailTitle.textContent = a.title;
+      detailGenre.textContent = a.genre;
+      detailDesc.textContent = a.desc || '';
+      detail.style.display = 'flex';
+      // set body theme for romance
+      if((a.genre||'').toLowerCase().includes('romance')){document.body.style.background='#f9f4f5';document.body.style.color='#111'} else {document.body.style.background='var(--bg)';document.body.style.color='#fff'}
+    }
+
+    function closeDetail(){ detail.style.display='none'; document.body.style.background='var(--bg)'; document.body.style.color='#fff'; }
+
+    // --- Filter logic ---
+    function applyFilters(){
+      const q = search.value.trim().toLowerCase();
+      // chip selection
+      const activeChip = document.querySelector('.chip.active');
+      const genre = activeChip ? activeChip.dataset.genre : 'all';
+      const selectedFromSelect = genreSelect.value;
+
+      let filtered = animeList.slice();
+      if(q) filtered = filtered.filter(a => a.title.toLowerCase().includes(q));
+      if(genre && genre!=='all') filtered = filtered.filter(a => a.genre===genre);
+      if(selectedFromSelect && selectedFromSelect!=='all') filtered = filtered.filter(a => a.genre===selectedFromSelect);
+      render(filtered);
+    }
+
+    // --- Init ---
+    (function init(){
+      const genres = uniqueGenres(animeList);
+      renderChips(genres);
+      populateGenreSelect(genres);
+      render(animeList);
+
+      // events
+      search.addEventListener('input', applyFilters);
+      genreSelect.addEventListener('change', applyFilters);
+      chips.addEventListener('click', (e)=>{
+        const chip = e.target.closest('.chip'); if(!chip) return;
+        document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+        chip.classList.add('active');
+        applyFilters();
+      });
+
+      document.getElementById('closeDetail').addEventListener('click', closeDetail);
+      detail.addEventListener('click', (e)=>{ if(e.target === detail) closeDetail(); });
+
+      // Add form interactions
+      openAdd.addEventListener('click', ()=> addFormWrap.style.display='flex');
+      cancelAdd.addEventListener('click', ()=> addFormWrap.style.display='none');
+
+      formAdd.addEventListener('submit', (ev)=>{
+        ev.preventDefault();
+        const t = document.getElementById('aTitle').value.trim();
+        const g = document.getElementById('aGenre').value.trim() || 'Unknown';
+        const i = document.getElementById('aImg').value.trim();
+        const d = document.getElementById('aDesc').value.trim();
+        if(!t) return alert('Title is required');
+        const newAnime = {title:t, genre:g, img:i, desc:d};
+        animeList.unshift(newAnime); // add to front
+        // refresh genres & UI
+        const genres = uniqueGenres(animeList);
+        genreSelect.innerHTML = '<option value="all">All genres</option>';
+        populateGenreSelect(genres);
+        renderChips(genres);
+        render(animeList);
+        addFormWrap.style.display='none';
+        formAdd.reset();
+      });
+
+    })();
+  </script>
+</body>
+</html>
